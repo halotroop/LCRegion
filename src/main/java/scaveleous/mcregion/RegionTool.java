@@ -24,6 +24,8 @@ import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
+import org.joml.Vector3i;
+
 class RegionTool
 {
 	static private boolean isConsole = false;
@@ -135,8 +137,9 @@ class RegionTool
 	private static boolean packChunk(File worldDir, File chunkFile, Matcher m)
 	{
 		int x = Integer.parseInt(m.group(1), 36);
-		int z = Integer.parseInt(m.group(2), 36);
-		RegionFile region = RegionFileCache.getRegionFile(worldDir, x, z);
+		int y = Integer.parseInt(m.group(2), 36);
+		int z = Integer.parseInt(m.group(3), 36);
+		RegionFile region = RegionFileCache.getRegionFile(worldDir, new Vector3i(x, y, z));
 		if (region.lastModified() > chunkFile.lastModified())
 			return false;
 		byte buf[] = new byte[4096];
@@ -145,7 +148,7 @@ class RegionTool
 		{
 			DataInputStream istream = new DataInputStream(
 				new GZIPInputStream(new FileInputStream(chunkFile)));
-			DataOutputStream out = region.getChunkDataOutputStream(x & 31, z & 31);
+			DataOutputStream out = region.getChunkDataOutputStream(x & 31, y & 31, z & 31);
 			while (len != -1)
 			{
 				out.write(buf, 0, len);
@@ -168,53 +171,57 @@ class RegionTool
 		RegionFile region = new RegionFile(file);
 		String name = file.getName();
 		int regionX = Integer.parseInt(match.group(1));
-		int regionZ = Integer.parseInt(match.group(2));
+		int regionY = Integer.parseInt(match.group(2));
+		int regionZ = Integer.parseInt(match.group(3));
 		int nWritten = 0, nSkipped = 0;
+		
+		// Iterate over blocks in the chunk
 		for (int x = 0; x < 32; ++x)
-		{
-			for (int z = 0; z < 32; ++z)
-			{
-				DataInputStream istream = region.getChunkDataInputStream(x, z);
-				if (istream == null)
-					continue;
-				int chunkX = x + (regionX << 5);
-				int chunkZ = z + (regionZ << 5);
-				String chunkName = "c." + Integer.toString(chunkX, 36) + "." + Integer.toString(chunkZ, 36) + ".dat";
-				File chunkFile = new File(worldDir, Integer.toString(chunkX & 63, 36));
-				chunkFile = new File(chunkFile, Integer.toString(chunkZ & 63, 36));
-				if (!chunkFile.exists())
-					chunkFile.mkdirs();
-				chunkFile = new File(chunkFile, chunkName);
-				byte buf[] = new byte[4096];
-				int len = 0;
-				if (chunkFile.lastModified() > regionModified)
+			for (int y = 0; y < 32; ++y)
+				for (int z = 0; z < 32; ++z)
 				{
-					nSkipped++;
-				}
-				else
-				{
-					try
+					DataInputStream istream = region.getChunkDataInputStream(x, y, z);
+					if (istream == null)
+						continue;
+					int chunkX = x + (regionX << 5);
+					int chunkY = y + (regionY << 5);
+					int chunkZ = z + (regionZ << 5);
+					String chunkName = "c." + Integer.toString(chunkX, 36) + "." + Integer.toString(chunkZ, 36) + ".dat";
+					File	chunkFile = new File(worldDir,	Integer.toString(chunkX & 63, 36));
+							chunkFile = new File(chunkFile,	Integer.toString(chunkY & 63, 36));
+							chunkFile = new File(chunkFile,	Integer.toString(chunkZ & 63, 36));
+					if (!chunkFile.exists())
+						chunkFile.mkdirs();
+					chunkFile = new File(chunkFile, chunkName);
+					byte buf[] = new byte[4096];
+					int len = 0;
+					if (chunkFile.lastModified() > regionModified)
 					{
-						DataOutputStream out = new DataOutputStream(
-							new GZIPOutputStream(new FileOutputStream(chunkFile)));
-						while (len != -1)
+						nSkipped++;
+					}
+					else
+					{
+						try
 						{
-							out.write(buf, 0, len);
-							len = istream.read(buf);
+							DataOutputStream out = new DataOutputStream(
+								new GZIPOutputStream(new FileOutputStream(chunkFile)));
+							while (len != -1)
+							{
+								out.write(buf, 0, len);
+								len = istream.read(buf);
+							}
+							out.close();
+							nWritten++;
 						}
-						out.close();
-						nWritten++;
+						catch (IOException e)
+						{
+							e.printStackTrace();
+						}
 					}
-					catch (IOException e)
-					{
-						e.printStackTrace();
-					}
+					if (isConsole)
+						System.out.print("\r" + name + ": unpacked " + nWritten + " chunks" +
+							(nSkipped > 0 ? ", skipped " + nSkipped + " newer ones" : ""));
 				}
-				if (isConsole)
-					System.out.print("\r" + name + ": unpacked " + nWritten + " chunks" +
-						(nSkipped > 0 ? ", skipped " + nSkipped + " newer ones" : ""));
-			}
-		}
 		if (isConsole)
 			System.out.print("\r");
 		System.out.println(name + ": unpacked " + nWritten + " chunks" +
@@ -259,8 +266,10 @@ class RegionTool
 	}
 
 	private static void exitUsage()
-	{ exit("regionTool: converts between chunks and regions\n" +
-		"usage: java -jar RegionTool.jar [un]pack <world directory> [target directory]"); }
+	{ //@formatter=off
+		exit( "regionTool: converts between chunks and regions\n" +
+		"usage: java -jar RegionTool.jar [un]pack <world directory> [target directory]" );
+	} // @formatter=on
 
 	private static void exit(String message)
 	{

@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.zip.*;
 
+import org.joml.Vector3i;
+
 /*
 2011 January 5
 
@@ -130,27 +132,28 @@ public class RegionFile
 	private void debugln(String in)
 	{ debug(in + "\n"); }
 
-	private void debug(String mode, int x, int z, String in)
-	{ debug("REGION " + mode + " " + fileName.getName() + "[" + x + "," + z + "] = " + in); }
+	private void debug(String mode, Vector3i pos, String in)
+	{ debug("REGION " + mode + " " + fileName.getName() + "[" + pos.x + "," + pos.z + "] = " + in); }
 
-	private void debug(String mode, int x, int z, int count, String in)
-	{ debug("REGION " + mode + " " + fileName.getName() + "[" + x + "," + z + "] " + count + "B = " + in); }
+	private void debug(String mode, Vector3i pos, int count, String in)
+	{ debug("REGION " + mode + " " + fileName.getName() + "[" + pos.x + "," + pos.z + "] " + count + "B = " + in); }
 
-	private void debugln(String mode, int x, int z, String in)
-	{ debug(mode, x, z, in + "\n"); }
+	private void debugln(String mode, Vector3i pos, String in)
+	{ debug(mode, pos, in + "\n"); }
 
 	/* gets an (uncompressed) stream representing the chunk data
 	   returns null if the chunk is not found or an error occurs  */
-	public synchronized DataInputStream getChunkDataInputStream(int x, int z)
+	public synchronized DataInputStream getChunkDataInputStream(int x, int y, int z)
 	{
-		if (outOfBounds(x, z))
+		Vector3i pos = new Vector3i(x,y,z);
+		if (outOfBounds(pos))
 		{
-			debugln("READ", x, z, "out of bounds");
+			debugln("READ", pos, "out of bounds");
 			return null;
 		}
 		try
 		{
-			int offset = getOffset(x, z);
+			int offset = getOffset(pos);
 			if (offset == 0)
 			{
 				// debugln("READ", x, z, "miss");
@@ -160,14 +163,14 @@ public class RegionFile
 			int numSectors = offset & 0xFF;
 			if (sectorNumber + numSectors > sectorFree.size())
 			{
-				debugln("READ", x, z, "invalid sector");
+				debugln("READ", pos, "invalid sector");
 				return null;
 			}
 			file.seek(sectorNumber * 4096);
 			int length = file.readInt();
 			if (length > 4096 * numSectors)
 			{
-				debugln("READ", x, z, "invalid length: " + length + " > 4096 * " + numSectors);
+				debugln("READ", pos, "invalid length: " + length + " > 4096 * " + numSectors);
 				return null;
 			}
 			byte version = file.readByte();
@@ -189,47 +192,49 @@ public class RegionFile
 				// debug("READ", x, z, " = found");
 				return ret;
 			}
-			debugln("READ", x, z, "unknown version " + version);
+			debugln("READ", pos, "unknown version " + version);
 			return null;
 		}
 		catch (IOException e)
 		{
-			debugln("READ", x, z, "exception");
+			debugln("READ", pos, "exception");
 			return null;
 		}
 	}
 
-	public DataOutputStream getChunkDataOutputStream(int x, int z)
+	public DataOutputStream getChunkDataOutputStream(int x, int y, int z)
 	{
-		if (outOfBounds(x, z))
+		Vector3i pos = new Vector3i(x,y,z);
+		
+		if (outOfBounds(pos))
 			return null;
 		return new DataOutputStream(new DeflaterOutputStream(
-			new ChunkBuffer(x, z)));
+			new ChunkBuffer(pos)));
 	}
 
 	/* lets chunk writing be multithreaded by not locking the whole file as a
 	   chunk is serializing -- only writes when serialization is over */
 	class ChunkBuffer extends ByteArrayOutputStream
 	{
-		private int x, z;
+		private Vector3i pos;
 
-		public ChunkBuffer(int x, int z)
+		public ChunkBuffer(Vector3i pos)
 		{
 			super(8096); // initialize to 8KB
-			this.x = x;
-			this.z = z;
+			this.pos.x = pos.x;
+			this.pos.z = pos.z;
 		}
 
 		public void close()
-		{ RegionFile.this.write(x, z, buf, count); }
+		{ RegionFile.this.write(pos, buf, count); }
 	}
 
 	/* write a chunk at (x,z) with length bytes of data to disk */
-	protected synchronized void write(int x, int z, byte[] data, int length)
+	protected synchronized void write(Vector3i pos, byte[] data, int length)
 	{
 		try
 		{
-			int offset = getOffset(x, z);
+			int offset = getOffset(pos);
 			int sectorNumber = offset >> 8;
 			int sectorsAllocated = offset & 0xFF;
 			int sectorsNeeded = (length + CHUNK_HEADER_SIZE) / 4096 + 1;
@@ -238,7 +243,7 @@ public class RegionFile
 			if (sectorNumber != 0 && sectorsAllocated == sectorsNeeded)
 			{
 				/* we can simply overwrite the old sectors */
-				debug("SAVE", x, z, length, "rewrite");
+				debug("SAVE", pos, length, "rewrite");
 				write(sectorNumber, data, length);
 			}
 			else
@@ -273,9 +278,9 @@ public class RegionFile
 				if (runLength >= sectorsNeeded)
 				{
 					/* we found a free space large enough */
-					debug("SAVE", x, z, length, "reuse");
+					debug("SAVE", pos, length, "reuse");
 					sectorNumber = runStart;
-					setOffset(x, z, (sectorNumber << 8) | sectorsNeeded);
+					setOffset(pos, (sectorNumber << 8) | sectorsNeeded);
 					for (int i = 0; i < sectorsNeeded; ++i)
 						sectorFree.set(sectorNumber + i, false);
 					write(sectorNumber, data, length);
@@ -283,7 +288,7 @@ public class RegionFile
 				else
 				{
 					/* no free space large enough found -- we need to grow the file */
-					debug("SAVE", x, z, length, "grow");
+					debug("SAVE", pos, length, "grow");
 					file.seek(file.length());
 					sectorNumber = sectorFree.size();
 					for (int i = 0; i < sectorsNeeded; ++i)
@@ -293,7 +298,7 @@ public class RegionFile
 					}
 					sizeDelta += 4096 * sectorsNeeded;
 					write(sectorNumber, data, length);
-					setOffset(x, z, (sectorNumber << 8) | sectorsNeeded);
+					setOffset(pos, (sectorNumber << 8) | sectorsNeeded);
 				}
 			}
 		}
@@ -314,16 +319,16 @@ public class RegionFile
 	}
 
 	/* is this an invalid chunk coordinate? */
-	private boolean outOfBounds(int x, int z)
-	{ return x < 0 || x >= 32 || z < 0 || z >= 32; }
+	private boolean outOfBounds(Vector3i pos)
+	{ return pos.x < 0 || pos.x >= 32 || pos.z < 0 || pos.z >= 32; }
 
-	private int getOffset(int x, int z) throws IOException
-	{ return offsets[x + z * 32]; }
+	private int getOffset(Vector3i pos) throws IOException
+	{ return offsets[pos.x + pos.z * 32]; }
 
-	private void setOffset(int x, int z, int offset) throws IOException
+	private void setOffset(Vector3i pos, int offset) throws IOException
 	{
-		offsets[x + z * 32] = offset;
-		file.seek((x + z * 32) * 4);
+		offsets[pos.x + pos.z * 32] = offset;
+		file.seek((pos.x + pos.z * 32) * 4);
 		file.writeInt(offset);
 	}
 

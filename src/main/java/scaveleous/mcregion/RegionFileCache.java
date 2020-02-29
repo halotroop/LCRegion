@@ -6,6 +6,8 @@ import java.lang.ref.Reference;
 import java.lang.ref.SoftReference;
 import java.util.*;
 
+import org.joml.Vector3i;
+
 /*
 ** 2011 January 5
 **
@@ -25,10 +27,10 @@ public class RegionFileCache
 	private RegionFileCache()
 	{}
 
-	public static synchronized RegionFile getRegionFile(File basePath, int x, int z)
+	public static synchronized RegionFile getRegionFile(File basePath, Vector3i pos)
 	{
 		File regionDir = new File(basePath, "region");
-		File file = new File(regionDir, "r." + (x >> 5) + "." + (z >> 5) + ".data");
+		File file = new File(regionDir, "r." + (pos.x >> 5) + "." + (pos.y >> 5) + ".data");
 		Reference<RegionFile> ref = cache.get(file);
 		if (ref != null && ref.get() != null)
 			return ref.get();
@@ -56,21 +58,21 @@ public class RegionFileCache
 		cache.clear();
 	}
 
-	public static int getSizeDelta(File basePath, int x, int z)
+	public static int getSizeDelta(File basePath, Vector3i pos)
 	{
-		RegionFile r = getRegionFile(basePath, x, z);
+		RegionFile r = getRegionFile(basePath, pos);
 		return r.getSizeDelta();
 	}
 
-	public static DataInputStream getChunkDataInputStream(File basePath, int x, int z)
+	public static DataInputStream getChunkDataInputStream(File basePath, Vector3i pos)
 	{
-		RegionFile r = getRegionFile(basePath, x, z);
-		return r.getChunkDataInputStream(x & 31, z & 31);
+		RegionFile r = getRegionFile(basePath, pos);
+		return r.getChunkDataInputStream(pos.x & 31, pos.y & 31, pos.z & 31);
 	}
 
-	public static DataOutputStream getChunkDataOutputStream(File basePath, int x, int z)
+	public static DataOutputStream getChunkDataOutputStream(File basePath, Vector3i pos)
 	{
-		RegionFile r = getRegionFile(basePath, x, z);
-		return r.getChunkDataOutputStream(x & 31, z & 31);
+		RegionFile r = getRegionFile(basePath, pos);
+		return r.getChunkDataOutputStream(pos.x & 31, pos.y & 31, pos.z & 31);
 	}
 }
