@@ -1,0 +1,35 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>LCRegion</groupId>
+  <artifactId>LCRegion</artifactId>
+  <version>2.0.0</version>
+  <name>LCRegion</name>
+  <description>A fork of MCRegion by Scaveleous, modified to be compatible with 3D chunks.</description>
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.8.0</version>
+        <configuration>
+          <release>13</release>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+  <dependencies>
+  	<dependency>
+  		<groupId>org.joml</groupId>
+  		<artifactId>joml</artifactId>
+  		<version>1.9.22</version>
+  	</dependency>
+  </dependencies>
+  <url>https://github.com/halotroop/LCRegion</url>
+  <organization>
+  	<name>halotroop</name>
+  	<url>https://github.com/halotroop</url>
+  </organization>
+  <issueManagement>
+  	<url>https://github.com/halotroop/LCRegion/issues</url>
+  	<system>Github</system>
+  </issueManagement>
+</project>

@@ -1,5 +1,11 @@
 package scaveleous.mcregion;
 
+import java.io.*;
+import java.io.IOException;
+import java.lang.ref.Reference;
+import java.lang.ref.SoftReference;
+import java.util.*;
+
 /*
 ** 2011 January 5
 **
@@ -10,14 +16,8 @@ package scaveleous.mcregion;
 **    May you find forgiveness for yourself and forgive others.
 **    May you share freely, never taking more than you give.
 */
+
 // A simple cache and wrapper for efficiently multiple RegionFiles simultaneously.
-
-import java.io.*;
-import java.io.IOException;
-import java.lang.ref.Reference;
-import java.lang.ref.SoftReference;
-import java.util.*;
-
 public class RegionFileCache
 {
 	private static final Map<File, Reference<RegionFile>> cache = new HashMap<File, Reference<RegionFile>>();

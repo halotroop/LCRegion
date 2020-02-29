@@ -1,18 +1,22 @@
 package scaveleous.mcregion;
 
-/*
-** 2011 January 5
-**
-** The author disclaims copyright to this source code.  In place of
-** a legal notice, here is a blessing:
-**
-**    May you do good and not evil.
-**    May you find forgiveness for yourself and forgive others.
-**    May you share freely, never taking more than you give.
-**/
-// Interfaces with region files on the disk
-/*
+import java.io.*;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.zip.*;
 
+/*
+2011 January 5
+
+The author disclaims copyright to this source code.  In place of
+a legal notice, here is a blessing:
+
+May you do good and not evil.
+May you find forgiveness for yourself and forgive others.
+May you share freely, never taking more than you give.
+*/
+
+/*
 Region File Format
 
 Concept: The minimum unit of storage on hard drives is 4KB. 90% of Minecraft
@@ -43,14 +47,9 @@ length - 1.
 
 A version of 2 represents a deflated (zlib compressed) NBT file. The deflated
 data is the chunk length - 1.
+*/
 
- */
-
-import java.io.*;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.zip.*;
-
+//Interfaces with region files on the disk
 public class RegionFile
 {
 	static final int CHUNK_HEADER_SIZE = 5;
