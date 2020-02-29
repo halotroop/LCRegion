@@ -7,7 +7,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        java_version: [8, 11, 13]
         os: [ubuntu-latest, windows-latest]
 
     steps:
@@ -16,6 +15,6 @@ jobs:
     - name: Setup Java JDK
       uses: actions/setup-java@v1
       with:
-        java-version: ${{ matrix.java_version }}
+        java-version: 13
     - name: Build with Maven
       run: mvn -B package --file pom.xml
